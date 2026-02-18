@@ -61,12 +61,12 @@ def change_cwd(msg):
 def parse_command(msg):
     if msg.startswith("/cwd"):
         return "CWD_COMMAND"
-    if msg in COMMAND_MAPPING:
+    elif msg.startswith("/run "):
+        return {"cmd": msg[5:]}  # only run once
+    elif msg in COMMAND_MAPPING:
         return COMMAND_MAPPING[msg]
-    if msg in SHORTCUTS_MAPPING:
+    elif msg in SHORTCUTS_MAPPING:
         return SHORTCUTS_MAPPING[msg]
-    if msg.startswith("/run "):
-        return {"cmd": msg[5:]}
     return None
 
 # ------------------------------
@@ -76,13 +76,13 @@ def execute_command(entry):
         # Determine command
         if isinstance(entry, str):
             cmd = entry
-            cwd = current_dir
         elif isinstance(entry, dict):
             cmd = entry.get("cmd")
-            # Always respect user-set cwd first
-            cwd = current_dir
         else:
             return "❌ Invalid command entry"
+
+        # Always respect user cwd
+        cwd = current_dir
 
         # Run command
         if isinstance(cmd, list):
@@ -93,6 +93,11 @@ def execute_command(entry):
         output = result.stdout + (("\n" + result.stderr) if result.stderr else "")
         output = output.strip()
         log_output(output)
+
+        # Send confirmation if mapping has confirm message
+        if isinstance(entry, dict) and "confirm" in entry:
+            return entry["confirm"]
+
         return output if output else "✅ Command executed (no output)"
     except Exception as e:
         return f"❌ Error executing command:\n{e}"
@@ -101,12 +106,17 @@ def execute_command(entry):
 def main():
     last_update_id = None
     print("Bot running...")
+
+    # Bot started message
+    send_message("🚀 Bot started and ready!")
+
+    # Send menu on start
     send_menu(BOT_TOKEN, CHAT_ID)
 
     while True:
         updates = get_updates(last_update_id)
         if not updates:
-            time.sleep(5)
+            time.sleep(3)
             continue
 
         for update in updates.get("result", []):
@@ -121,7 +131,7 @@ def main():
             if msg.startswith("/cwd"):
                 resp = change_cwd(msg)
                 send_message(resp)
-                continue  # prevent unknown command warning
+                continue  # prevent double execution
 
             # Determine command
             entry = parse_command(msg)
@@ -129,6 +139,7 @@ def main():
                 send_message("⚠️ Unknown command. Use menu buttons or /run <command>")
                 continue
 
+            # Execute only once
             output = execute_command(entry)
             send_message(output)
 
