@@ -7,11 +7,9 @@ import time
 from menu_config import BOT_TOKEN, CHAT_ID, COMMAND_MAPPING, SHORTCUTS_MAPPING, send_menu
 
 # ------------------------------
-# Default working directory
 DEFAULT_DIR = os.path.expanduser("~/")
 current_dir = DEFAULT_DIR
 
-# Log file to store command output
 LOG_FILE = os.path.expanduser("~/tg/logs/bot_output.log")
 os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
 
@@ -63,12 +61,10 @@ def change_cwd(msg):
 def parse_command(msg):
     if msg.startswith("/cwd"):
         return "CWD_COMMAND"
-    # Menu button or shortcut
     if msg in COMMAND_MAPPING:
         return COMMAND_MAPPING[msg]
     if msg in SHORTCUTS_MAPPING:
         return SHORTCUTS_MAPPING[msg]
-    # /run custom command
     if msg.startswith("/run "):
         return {"cmd": msg[5:]}
     return None
@@ -77,23 +73,26 @@ def parse_command(msg):
 def execute_command(entry):
     global current_dir
     try:
+        # Determine command
         if isinstance(entry, str):
-            # simple command string
-            result = subprocess.run(entry, cwd=current_dir, shell=True, capture_output=True, text=True)
-            output = result.stdout + (("\n" + result.stderr) if result.stderr else "")
+            cmd = entry
+            cwd = current_dir
         elif isinstance(entry, dict):
-            # dict -> {"cmd": ..., "cwd": ...}
-            cwd = os.path.expanduser(entry.get("cwd", current_dir))
             cmd = entry.get("cmd")
-            if isinstance(cmd, list):
-                result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
-            else:
-                result = subprocess.run(cmd, cwd=cwd, shell=True, capture_output=True, text=True)
-            output = result.stdout + (("\n" + result.stderr) if result.stderr else "")
+            # Always respect user-set cwd first
+            cwd = current_dir
         else:
             return "❌ Invalid command entry"
+
+        # Run command
+        if isinstance(cmd, list):
+            result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
+        else:
+            result = subprocess.run(cmd, cwd=cwd, shell=True, capture_output=True, text=True)
+
+        output = result.stdout + (("\n" + result.stderr) if result.stderr else "")
         output = output.strip()
-        log_output(output)  # append to log
+        log_output(output)
         return output if output else "✅ Command executed (no output)"
     except Exception as e:
         return f"❌ Error executing command:\n{e}"
@@ -113,7 +112,7 @@ def main():
         for update in updates.get("result", []):
             last_update_id = update["update_id"] + 1
             msg = update.get("message", {}).get("text")
-            chat_id = update.get("message", {}).get("chat", {}).get("id")
+            chat_id = update.get("message", {}).get("id")
 
             if not msg or str(chat_id) != str(CHAT_ID):
                 continue
@@ -122,15 +121,14 @@ def main():
             if msg.startswith("/cwd"):
                 resp = change_cwd(msg)
                 send_message(resp)
-                continue
+                continue  # prevent unknown command warning
 
-            # Determine actual command
+            # Determine command
             entry = parse_command(msg)
             if not entry:
-                send_message("⚠️ Unknown command. Use menu or /run <command>")
+                send_message("⚠️ Unknown command. Use menu buttons or /run <command>")
                 continue
 
-            # Execute and send output
             output = execute_command(entry)
             send_message(output)
 
