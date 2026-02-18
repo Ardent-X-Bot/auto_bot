@@ -19,9 +19,9 @@ COMMAND_MAPPING = {
     "pkg update -y": {"cmd": "pkg update -y"},
     "pwd": {"cmd": "pwd"},
     "Storage": {"cmd": "ls", "cwd": "~/storage/shared"},
-    "backup": {"cmd": ["git", "clone", "https://github.com/Cod3r-Ak/TermuX-Custom.git"], "cwd": "~/tg"},
+    "backup": {"cmd": ["git", "clone", "https://github.com/Cod3r-Ak/TermuX-Custom.git"], "cwd": "~/tg", "confirm": "✅ Backup/clone completed!"},
     "start_script": {"cmd": ["python3", "test.py"], "cwd": "~/python"},
-    "screen info": {"cmd": "cat ~/tg/logs/bot_output.log"}  # Log snapshot
+    "screen info": {"cmd": "cat ~/tg/logs/bot_output.log"}
 }
 
 # ------------------------------
